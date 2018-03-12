@@ -1,0 +1,7 @@
+README.rst
+pipeline.py
+diatompipeline.egg-info/PKG-INFO
+diatompipeline.egg-info/SOURCES.txt
+diatompipeline.egg-info/dependency_links.txt
+diatompipeline.egg-info/requires.txt
+diatompipeline.egg-info/top_level.txt

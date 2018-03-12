@@ -1,0 +1,15 @@
+Metadata-Version: 1.1
+Name: diatompipeline
+Version: 1.0.0
+Summary: Pipeline for diatom sample identification
+Home-page: UNKNOWN
+Author: Rachel Glover
+Author-email: rachel.glover@taxagenomics.com
+License: UNKNOWN
+Description-Content-Type: UNKNOWN
+Description: UNKNOWN
+Platform: UNKNOWN
+Classifier: Development Status :: 4 - Beta
+Classifier: Intended Audience :: Scientists
+Classifier: Programming Lanugage :: Python :: 2
+Classifier: Programming Lanugage :: Python :: 2.7
