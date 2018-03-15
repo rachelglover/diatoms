@@ -22,9 +22,6 @@ setup (
     py_modules=["pipeline"],
     install_requires=[
         "pygal >= 2.4.0",
-        "biopython >= 1.70",
-        "cutadapt >= 1.16",
-        "pandas",
     ],
 
 )

@@ -9,7 +9,7 @@ These instructions assume you have a new installation of linux (or a new VM) and
 Installation
 ------------
 1. Copy this folder ("diatoms") to a convenient location
-2. Install the following packages with the command: sudo apt-get install python-pip zlib1g-dev parallel ncbi-blast+
+2. Install the following packages with the command: sudo apt-get install zlib1g-dev parallel ncbi-blast+ cutadapt python-pandas python-biopython python-dev
 3. Download PEAR from https://www.h-its.org/en/research/sco/software/#NextGenerationSequencingSequenceAnalysis and install the software in /usr/local/bin
 4. Download usearch v5.2.236 from https://www.drive5.com/usearch/download.html. It is very important that you download version 5.2.236. When it is downloaded, do not change the name of the file, just move it to /usr/local/bin. Change the permissions of the file by typing: sudo chmod 755 /usr/local/bin/usearch5.2.236_i86linux32
 5. Download sickle v1.33 from https://github.com/najoshi/sickle/archive/v1.33.tar.gz. Extract the folder, move into the folder on the command line and type: make. Move the sickle executable to /usr/local/bin.
