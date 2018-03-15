@@ -195,7 +195,7 @@ def clustering(threads, fastafile, directory):
     which we cannot use as it is only licensed for use with QIIME.
     """
     fastafile = fastafile.replace("analysis/","")
-    sortcmd = "usearch5.2.236_i86linux32 --sort " + directory + "analysis/" + str(fastafile) + " --output " + directory + "analysis/" + str(fastafile) + ".sorted"
+    sortcmd = "uclustq1.2.22_i86linux32 --sort " + directory + "analysis/" + str(fastafile) + " --output " + directory + "analysis/" + str(fastafile) + ".sorted"
     sortchild = subprocess.Popen(str(sortcmd),
                                  stdout=subprocess.PIPE,
                                  stderr=subprocess.PIPE,
@@ -208,7 +208,7 @@ def clustering(threads, fastafile, directory):
         makeDir = os.mkdir(directory + "analysis/picked_otus_97")
     except OSError:
         pass
-    usearchcmd = "usearch5.2.236_i86linux32 --cluster " + directory + "analysis/" + str(fastafile) + ".sorted --id 0.97 --w 8 --tmpdir /tmp --stepwords 8 --usersort --maxaccepts 1 --stable_sort --maxrejects 8 --uc " + directory + "analysis/picked_otus_97/otu_clusters.uc --seedsout " + directory + "analysis/repset.seeds.fasta"
+    usearchcmd = "uclustq1.2.22_i86linux32 --input " + directory + "analysis/" + str(fastafile) + ".sorted --id 0.97 --w 8 --tmpdir /tmp --stepwords 8 --usersort --maxaccepts 1 --stable_sort --maxrejects 8 --uc " + directory + "analysis/picked_otus_97/otu_clusters.uc --seedsout " + directory + "analysis/repset.seeds.fasta"
     usearchchild = subprocess.Popen(str(usearchcmd),
                                     stdout=subprocess.PIPE,
                                     stderr=subprocess.PIPE,
