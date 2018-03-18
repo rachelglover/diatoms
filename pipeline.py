@@ -11,6 +11,7 @@ from Bio import SeqIO
 from collections import Counter
 from collections import defaultdict
 
+
 def main():
     forwardprimer = "ATGCGTTGGAGAGARCGTTTC"
     reverseprimer = "GATCACCTTCTAATTTACCWACAACTG"
@@ -24,23 +25,21 @@ def main():
 
     # Run the amplicon QC
     clusteringFile = ampliconQC(dataDirectory, options.threads, forwardprimer, reverseprimer)
-
     # run the OTU picking (with usearch rather than QIIME uclust. uclust is ONLY licensed
     # for use with QIIME so we can't use it.)
-    clustered = clustering(options.threads, clusteringFile, dataDirectory)
+    clustered = clustering(clusteringFile, dataDirectory)
 
     # Create the repset sequences and counts data
-    counts = repsetCounts(clusteringFile,dataDirectory)
+    counts = repsetCounts(clusteringFile, dataDirectory)
 
     # Assign taxonomy to the repset sequences
-    taxonomy = assignTaxonomy(options.dbseq, dataDirectory)
+    taxonomy = assignTaxonomy(options.threads, options.dbseq, dataDirectory)
 
     # Calculate abundances
     abundances = calculateAbundance(counts, dataDirectory)
 
     # Output pass/fail excel files.
     output = outputReport(abundances, dataDirectory)
-
 
 
 def outputReport(abundances, directory):
@@ -69,7 +68,7 @@ def calculateAbundance(countsDF, directory):
     associated taxonomy for output later.
     """
     abundancesDict = defaultdict(lambda: defaultdict(float))
-    for line in open(directory + "analysis/repset.taxonomy.txt","rU"):
+    for line in open(directory + "analysis/repset.taxonomy.txt", "rU"):
         linesplit = line.split('\t')
         otu = linesplit[0].rstrip()
         assigned_taxonomy = linesplit[1].strip(';')
@@ -87,7 +86,7 @@ def calculateAbundance(countsDF, directory):
     return abundancesDF
 
 
-def assignTaxonomy(dbseq, directory):
+def assignTaxonomy(threads, dbseq, directory):
     """
     This function assigns taxonomy using blastn
     """
@@ -101,17 +100,17 @@ def assignTaxonomy(dbseq, directory):
     dboutput, dberror = dbchild.communicate()
     print dboutput, dberror
 
-    blastcmd = "blastn -db "+ directory + "analysis/diatoms -query " + directory + "analysis/repset.fasta -out " + directory + "analysis/repset.diatoms.blastn -max_target_seqs 1 -num_threads 130 -outfmt 6 -evalue 0.01"
+    blastcmd = "blastn -db " + directory + "analysis/diatoms -query " + directory + "analysis/repset.fasta -out " + directory + "analysis/repset.diatoms.blastn -task blastn -max_target_seqs 1 -num_threads " + threads + " -outfmt 6 -evalue 0.01"
     print blastcmd
     blastchild = subprocess.Popen(str(blastcmd),
-                                      stdout=subprocess.PIPE,
-                                      stderr=subprocess.PIPE,
-                                      universal_newlines=True,
-                                      shell=(sys.platform != "win32"))
+                                  stdout=subprocess.PIPE,
+                                  stderr=subprocess.PIPE,
+                                  universal_newlines=True,
+                                  shell=(sys.platform != "win32"))
     blastoutput, blasterror = blastchild.communicate()
     print blastoutput, blasterror
 
-    outputfile = open(directory + "analysis/repset.taxonomy.txt","w")
+    outputfile = open(directory + "analysis/repset.taxonomy.txt", "w")
     for line in open(directory + "analysis/repset.diatoms.blastn", "rU"):
         linelist = re.split('\t', line)
         otu = linelist[0]
@@ -134,7 +133,7 @@ def repsetCounts(clusteringFile, directory):
     This function goes through the usearch results, determines the representative sequence
     and calculates the number of sequences from each sample per OTU.
     """
-    ucfile = open(directory + "analysis/picked_otus_97/otu_clusters.uc","rU")
+    ucfile = open(directory + "analysis/picked_otus_97/otu_clusters.uc", "rU")
     seeds = defaultdict(list)
     for line in ucfile:
         if line.startswith("S"):
@@ -149,19 +148,22 @@ def repsetCounts(clusteringFile, directory):
     otus = defaultdict(list)
     i = 0
     repset_names = {}
+    testout = open(directory + "analysis/picked_otus_97/testseeds.txt","w")
     for seed in seeds:
         otuname = "denovo" + str(i)
         repset_names[otuname] = seed
         otus[otuname] = seeds[seed]
+        testout.write(otuname + "," + seed + "\n")
         i = i + 1
 
-    otu_names_file = open(directory + "analysis/picked_otus_97/otu_clusters.otus.txt","w")
+
+    otu_names_file = open(directory + "analysis/picked_otus_97/otu_clusters.otus.txt", "w")
     countData = defaultdict(lambda: defaultdict(int))
     for otu in otus:
-        otu_line = otu+ "\t" + "\t".join(otus[otu]) + "\n"
+        otu_line = otu + "\t" + "\t".join(otus[otu]) + "\n"
         otu_names_file.write(otu_line)
         for seq in otus[otu]:
-            seqsplit = re.split('_',seq)
+            seqsplit = re.split('_', seq)
             sample = seqsplit[0]
             sequence = seqsplit[1].rstrip()
             try:
@@ -175,27 +177,22 @@ def repsetCounts(clusteringFile, directory):
     dataframe = dataframe.fillna(0)
     dataframe.to_csv(directory + "analysis/picked_otus_97/otu_clusters.counts.txt", sep="\t")
 
-
     print "Retrieving the representative sequences..."
-    repset_file = open(directory + "analysis/repset.fasta","w")
-    for seq in SeqIO.parse(directory + "analysis/repset.seeds.fasta","fasta"):
-        for otu, seedseq in repset_names.iteritems():
-            if seq.id == seedseq:
-                seq.id = otu
-                seq.description = ""
-                SeqIO.write(seq,repset_file,"fasta")
-    os.remove(directory + "analysis/repset.seeds.fasta")
+    repset_file = open(directory + "analysis/repset.fasta", "w")
+    allsequences = SeqIO.index(directory + clusteringFile,"fasta")
+    for otu, seedseq in repset_names.iteritems():
+        if seedseq in allsequences.keys():
+            seq = allsequences[seedseq]
+            seq.id = otu
+            seq.description = ""
+            SeqIO.write(seq, repset_file, "fasta")
     return dataframe
 
 
-def clustering(threads, fastafile, directory):
-    """
-    This function carries out the clustering of sequences into OTUs using 5.2.236.
-    The reason for using this version of usearch is that it is the closest to uclust,
-    which we cannot use as it is only licensed for use with QIIME.
-    """
-    fastafile = fastafile.replace("analysis/","")
-    sortcmd = "uclustq1.2.22_i86linux32 --sort " + directory + "analysis/" + str(fastafile) + " --output " + directory + "analysis/" + str(fastafile) + ".sorted"
+def clustering(fastafile, directory):
+    fastafile = fastafile.replace("analysis/", "")
+    sortcmd = "uclustq1.2.22_i86linux32 --sort " + directory + "analysis/" + str(
+        fastafile) + " --output " + directory + "analysis/" + str(fastafile) + ".sorted"
     sortchild = subprocess.Popen(str(sortcmd),
                                  stdout=subprocess.PIPE,
                                  stderr=subprocess.PIPE,
@@ -208,7 +205,8 @@ def clustering(threads, fastafile, directory):
         makeDir = os.mkdir(directory + "analysis/picked_otus_97")
     except OSError:
         pass
-    usearchcmd = "uclustq1.2.22_i86linux32 --input " + directory + "analysis/" + str(fastafile) + ".sorted --id 0.97 --w 8 --tmpdir /tmp --stepwords 8 --usersort --maxaccepts 1 --stable_sort --maxrejects 8 --uc " + directory + "analysis/picked_otus_97/otu_clusters.uc --seedsout " + directory + "analysis/repset.seeds.fasta"
+    usearchcmd = "uclustq1.2.22_i86linux32 --input " + directory + "analysis/" + str(
+        fastafile) + ".sorted --id 0.97 --w 8 --tmpdir /tmp --stepwords 8 --usersort --maxaccepts 1 --stable_sort --maxrejects 8 --uc " + directory + "analysis/picked_otus_97/otu_clusters.uc"
     usearchchild = subprocess.Popen(str(usearchcmd),
                                     stdout=subprocess.PIPE,
                                     stderr=subprocess.PIPE,
@@ -218,6 +216,7 @@ def clustering(threads, fastafile, directory):
     print usearchoutput, usearcherror
 
     return True
+
 
 def ampliconQC(dataDirectory, threads, forwardprimer, reverseprimer):
     """
@@ -251,14 +250,15 @@ def ampliconQC(dataDirectory, threads, forwardprimer, reverseprimer):
 
     return "analysis/readyForClustering.allsamples.fasta"
 
+
 def drawHistogram(sequenceFile):
     """
     Draws a histogram of the sequence length distribution of the sequences in the file.
     """
     filename, extension = os.path.splitext(sequenceFile)
-    extension = re.sub('\.','',extension)
+    extension = re.sub('\.', '', extension)
     outfile = str(sequenceFile) + ".histogram.svg"
-    sequences = [len(rec) for rec in SeqIO.parse(sequenceFile,extension)]
+    sequences = [len(rec) for rec in SeqIO.parse(sequenceFile, extension)]
     counts = Counter(sequences)
     plot = pygal.XY(show_x_guides=True, show_legend=False, title="Sequence Length Histogram: " + sequenceFile,
                     x_title="Sequence length (nt)", y_title="Number of sequences")
@@ -266,6 +266,7 @@ def drawHistogram(sequenceFile):
     plot.render_to_file(outfile)
     print "Histogram " + outfile + " finished"
     return True
+
 
 def clusteringPrep(threads, directory):
     """
@@ -310,6 +311,7 @@ def clusteringPrep(threads, directory):
         SeqIO.write(seq, outFasta, "fasta")
         i = i + 1
     outFasta.close()
+    print i, " sequences ready for clustering\n"
 
     deleted = os.remove(directory + "allpassedQC.unnumbered.fastq")
 
@@ -319,8 +321,9 @@ def clusteringPrep(threads, directory):
 
 
 def runSickleSE(threads, directory):
-    minLength = calculateMeanLength(directory) - 30 #forward primer that was trimmed off
-    sickleSEcommand = "ls " + directory + "*.assembled.fastq | parallel -j " + str(threads) + " '/usr/local/bin/sickle se -f {} -t sanger -o {}.passedQC.fastq -n -l " + str(minLength) + " -q 30'"
+    minLength = calculateMeanLength(directory) - 30  # forward primer that was trimmed off
+    sickleSEcommand = "ls " + directory + "*.assembled.fastq | parallel -j " + str(
+        threads) + " '/usr/local/bin/sickle se -f {} -t sanger -o {}.passedQC.fastq -n -l " + str(minLength) + " -q 30'"
     sickleSEchild = subprocess.Popen(str(sickleSEcommand),
                                      stdout=subprocess.PIPE,
                                      stderr=subprocess.PIPE,
@@ -340,6 +343,7 @@ def runSickleSE(threads, directory):
         rename = os.rename(sampleName + ".assembled.fastq.passedQC.fastq", sampleName + ".passedQC.fastq")
     return True
 
+
 def calculateMeanLength(directory):
     mean = None
     means = []
@@ -357,17 +361,19 @@ def calculateMeanLength(directory):
     mean = sum(means) / float(len(means))
     return mean
 
+
 def runPear(threads, directory):
     sequenceFiles = glob.glob(directory + "*.fastq.gz")
     samples = []
     for fastqFile in sequenceFiles:
-        filenameList = re.split('\.',fastqFile)
-        samples.append(filenameList[0].replace(directory,''))
+        filenameList = re.split('\.', fastqFile)
+        samples.append(filenameList[0].replace(directory, ''))
     sampleNames = list(set(samples))
 
     for sampleName in sampleNames:
         sampleName = directory + sampleName
-        pearCommand = "/usr/local/bin/pear -e 1 -f " + sampleName + ".sickle.trimmed.R1.fastq.gz -r " + sampleName + ".sickle.trimmed.R2.fastq.gz -o " + sampleName + " -j " + str(threads)
+        pearCommand = "/usr/local/bin/pear -e 1 -f " + sampleName + ".sickle.trimmed.R1.fastq.gz -r " + sampleName + ".sickle.trimmed.R2.fastq.gz -o " + sampleName + " -j " + str(
+            threads)
         pearChild = subprocess.Popen(str(pearCommand),
                                      stdout=subprocess.PIPE,
                                      stderr=subprocess.PIPE,
@@ -388,7 +394,7 @@ def runSicklePE(directory):
     samples = []
     for fastqFile in sequenceFiles:
         filenameList = re.split('\.', fastqFile)
-        samples.append(filenameList[0].replace(directory,''))
+        samples.append(filenameList[0].replace(directory, ''))
     sampleNames = list(set(samples))
 
     for sampleName in sampleNames:
@@ -410,14 +416,16 @@ def runSicklePE(directory):
                           directory + "raw_data/" + sampleName + ".R2.fastq.gz")
     return True
 
+
 def runCutadapt(threads, directory, forwardprimer, reverseprimer):
     errorRate = 0.3
-    cutadaptCommand = "ls " + directory + "*.fastq.gz | parallel -j " + str(threads) + " 'cutadapt -e " + str(errorRate) + " -b " + str(forwardprimer) + " -b " + str(reverseprimer) + " -o {}.trimmed.fastq.gz {}'"
+    cutadaptCommand = "ls " + directory + "*.fastq.gz | parallel -j " + str(threads) + " 'cutadapt -e " + str(
+        errorRate) + " -b " + str(forwardprimer) + " -b " + str(reverseprimer) + " -o {}.trimmed.fastq.gz {}'"
     cutadaptChild = subprocess.Popen(str(cutadaptCommand),
-                                     stdout = subprocess.PIPE,
-                                     stderr = subprocess.PIPE,
-                                     universal_newlines = True,
-                                     shell=(sys.platform!="win32"))
+                                     stdout=subprocess.PIPE,
+                                     stderr=subprocess.PIPE,
+                                     universal_newlines=True,
+                                     shell=(sys.platform != "win32"))
     cutadaptOutput, cutadaptError = cutadaptChild.communicate()
     print cutadaptOutput, cutadaptError
     return True
@@ -441,20 +449,21 @@ def renameFiles(directory):
     for filename in files:
         path, file = os.path.split(filename)
         filenameSplit = re.split('_', file)
-        if(len(filenameSplit) == 1):
+        if (len(filenameSplit) == 1):
             return None
         else:
             sampleName = filenameSplit[0]
             readDirection = filenameSplit[3]
             newFilename = path + "/" + sampleName + "." + readDirection + ".fastq.gz"
             rename = os.rename(filename, newFilename)
-            print "renamed:\t",filename,"\tto\t",newFilename
+            print "renamed:\t", filename, "\tto\t", newFilename
     return True
+
 
 def processArguments():
     parser = argparse.ArgumentParser()
     parser.add_argument('--data', help="Relative location of the data", required=True)
-    parser.add_argument('--threads', help="Number of threads", default=4,required=False)
+    parser.add_argument('--threads', help="Number of threads", default=4, required=False)
     parser.add_argument('--dbseq', help="Sequence database file", required=True)
 
     return parser.parse_args()
@@ -468,11 +477,11 @@ def dependencyChecks():
 
     sys.stdout.write("Checking the presence of dependencies...\n")
 
-    if os.path.isfile("/usr/local/bin/usearch5.2.236_i86linux32") is not True:
+    if os.path.isfile("/usr/local/bin/uclustq1.2.22_i86linux32") is not True:
         sys.stderr.write("!!ERROR!!\nThe pipeline can't find usearch in /usr/local/bin.\n")
         sys.exit(1)
     else:
-        sys.stdout.write("USEARCH has been found ---- PASS\n")
+        sys.stdout.write("UCLUST has been found ---- PASS\n")
 
     if os.path.isfile("/usr/local/bin/sickle") is not True:
         sys.stderr.write("!!ERROR!!\nThe pipeline can't find sickle in /usr/local/bin.\n")
@@ -490,4 +499,3 @@ def dependencyChecks():
 
 if __name__ == "__main__":
     main()
-

@@ -13,7 +13,7 @@ Installation
 3. Download PEAR from https://www.h-its.org/en/research/sco/software/#NextGenerationSequencingSequenceAnalysis and install the software in /usr/local/bin
 4. Download usearch v5.2.236 from https://www.drive5.com/usearch/download.html. It is very important that you download version 5.2.236. When it is downloaded, do not change the name of the file, just move it to /usr/local/bin. Change the permissions of the file by typing: sudo chmod 755 /usr/local/bin/usearch5.2.236_i86linux32
 5. Download sickle v1.33 from https://github.com/najoshi/sickle/archive/v1.33.tar.gz. Extract the folder, move into the folder on the command line and type: make. Move the sickle executable to /usr/local/bin.
-6. Move into the directory above "diatoms" and install the pipeline with the command: pip install -e diatoms.
+6. Move into the directory above "diatoms" and install the pipeline with the command: sudo pip install -e diatoms.
 
 If you have had no errors at this point, the pipeline is ready to go! Please report any errors to rachel.glover@taxagenomics.com
 
